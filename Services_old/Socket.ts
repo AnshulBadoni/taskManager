@@ -7,13 +7,13 @@ const pub = new Redis({
   host: "valkey-1560c66d-scalable-chat-app-node.d.aivencloud.com",
   port: 17720,
   username: "default",
-  password: "AVNS_N5QWjYiN1YIBmeQ6lRO",
+  password: process.env.REDIS_PASSWORD,
 });
 const sub = new Redis({
   host: "valkey-1560c66d-scalable-chat-app-node.d.aivencloud.com",
   port: 17720,
   username: "default",
-  password: "AVNS_N5QWjYiN1YIBmeQ6lRO",
+  password: process.env.REDIS_PASSWORD,
 });
 
 class SocketService {
