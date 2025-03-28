@@ -1,0 +1,75 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Users {
+  id               Int        @id @default(autoincrement())
+  username         String     @unique
+  email            String     @unique
+  password         String
+  compcode         String
+  rooms            Projects[] @relation("UserRooms")
+  sentMessages     Message[]  @relation("SentMessages")
+  receivedMessages Message[]  @relation("ReceivedMessages")
+  assignedTasks    Tasks[]    @relation("AssignedTasks")
+  createdTasks     Tasks[]    @relation("CreatedTasks")
+}
+
+model Projects {
+  id          Int       @id @default(autoincrement())
+  name        String
+  description String
+  users       Users[]   @relation("UserRooms")
+  messages    Message[] @relation("ProjectMessages")
+  tasks       Tasks[]
+}
+
+model Tasks {
+  id           Int      @id @default(autoincrement())
+  name         String
+  description  String
+  status       Status
+  dueDate      DateTime
+  assignedBy   Users    @relation("CreatedTasks", fields: [assignedById], references: [id])
+  assignedById Int
+  assignedTo   Users    @relation("AssignedTasks", fields: [assignedToId], references: [id])
+  assignedToId Int
+  project      Projects @relation(fields: [projectId], references: [id])
+  projectId    Int
+}
+
+model Message {
+  id         Int       @id @default(autoincrement())
+  content    String
+  createdAt  DateTime  @default(now())
+  sender     Users     @relation("SentMessages", fields: [senderId], references: [id])
+  senderId   Int
+  receiver   Users?    @relation("ReceivedMessages", fields: [receiverId], references: [id])
+  receiverId Int?
+  project    Projects? @relation("ProjectMessages", fields: [projectId], references: [id])
+  projectId  Int?
+}
+
+enum Role {
+  USER
+  ADMIN
+}
+
+enum Status {
+  OPEN
+  IN_PROGRESS
+  DONE
+  OVERDUE
+  CANCELLED
+}
