@@ -1,7 +1,9 @@
 import { Request, Response } from "express";
 import prisma from "../Connection/prisma";
-import { redis } from '../Services/redis'
+import { redis } from "../Services/redis";
 import { getOrSetCache } from "../Services/cache";
+import { kafkaProducer } from "../Services/kafka"; // import producer
+import { deleteCache, setKafka } from "../util/index"; 
 
 export const createProject = async (req: Request, res: Response) => {
   try {
@@ -41,8 +43,8 @@ export const createProject = async (req: Request, res: Response) => {
       },
     });
 
-    redis.del('projects:all');
-    redis.del(`project:name:${newProject.name}`);
+    await deleteCache('projects:all',`projects:name:${newProject.name}`);
+    await setKafka("project-events", "project-created", newProject);
     res.status(201).json(newProject);
   } catch (error) {
     console.error("Error creating project:", error);
@@ -52,7 +54,7 @@ export const createProject = async (req: Request, res: Response) => {
 
 export const getAllProjects = async (req: Request, res: Response) => {
   try {
-    const projects = getOrSetCache(
+    const projects = await getOrSetCache(
       "projects:all",
       () => prisma.projects.findMany({ include: { users: true } }),
       600
@@ -68,11 +70,13 @@ export const getProject = async (req: Request, res: Response) => {
   try {
     const { name } = req.params;
 
-    const project = getOrSetCache(`projects:name:${name}`, () =>
-      prisma.projects.findMany({
-        where: { name: name },
-        include: { users: true },
-      }),
+    const project = await getOrSetCache(
+      `projects:name:${name}`,
+      () =>
+        prisma.projects.findMany({
+          where: { name: name },
+          include: { users: true },
+        }),
       600
     );
 
@@ -98,9 +102,8 @@ export const updateProject = async (req: Request, res: Response) => {
       data: { name, description },
     });
 
-    await redis.del('projects:all');
-    await redis.del(`project:name:${updatedProject.name}`);
-
+    await deleteCache("projects:all", `projects:name:${updatedProject.name}`);
+    await setKafka("project-events", "project-updated", updatedProject);
     res.status(200).json(updatedProject);
   } catch (error) {
     console.error("Error updating project:", error);
@@ -118,17 +121,17 @@ export const deleteProject = async (req: Request, res: Response) => {
 
     if (!project) {
       res.status(404).json({ error: "Project not found" });
-      return
+      return;
     }
 
     await prisma.projects.delete({
       where: { id: Number(id) },
     });
 
-    await redis.del('projects:all');
-    await redis.del(`project:name:${project?.name}`);
+    await deleteCache("projects:all", `projects:name:${project.name}`);
+    await setKafka("project-events", "project-deleted", project);
 
-    res.status(204).send('Project deleted successfully');
+    res.status(204).send("Project deleted successfully");
   } catch (error) {
     console.error("Error deleting project:", error);
     res.status(500).json({ error: "Internal Server Error", details: error });
@@ -139,19 +142,27 @@ export const assignProject = async (req: Request, res: Response) => {
   try {
     const { projectId, userId } = req.body;
 
-    const updatedProject = getOrSetCache(
-      `projects:${projectId}`,
-      () => prisma.projects.update({
-        where: { id: projectId },
-        data: {
-          users: {
-            connect: { id: userId },
-          },
+    const project = await prisma.projects.findUnique({
+      where: { id: projectId },
+      include: { users: true },
+    });
+
+    if (!project) {
+      res.status(404).json({ error: "Project not found" });
+      return;
+    }
+    const updatedProject = await prisma.projects.update({
+      where: { id: projectId },
+      data: {
+        users: {
+          connect: { id: userId },
         },
-      }),
-      600
-    )
-    
+      },
+    });
+
+    await deleteCache("projects:all", `projects:name:${project.name}`);
+    await setKafka("project-events", "project-assigned", updatedProject);
+
     res.status(200).json(updatedProject);
   } catch (error) {
     res.status(500).send("Error creating user" + error);
@@ -163,13 +174,13 @@ export const unaasignProject = async (req: Request, res: Response) => {
     const { projectId, userId } = req.body;
 
     const project = await prisma.projects.findUnique({
-        where: {id: projectId},
-        include: { users: true }
-    })
+      where: { id: projectId },
+      include: { users: true },
+    });
 
     if (!project) {
       res.status(404).json({ error: "Project not found" });
-      return
+      return;
     }
 
     const updatedProject = await prisma.projects.update({
@@ -181,8 +192,8 @@ export const unaasignProject = async (req: Request, res: Response) => {
       },
     });
 
-    redis.del('projects:all');
-    redis.del(`project:name:${project?.name}`);
+    await deleteCache("projects:all", `projects:name:${project.name}`);
+    await setKafka("project-events", "project-unassigned", updatedProject);
 
     res.status(200).json(updatedProject);
   } catch (error) {

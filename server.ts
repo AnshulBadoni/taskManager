@@ -1,6 +1,8 @@
 import express, { Express, Request, Response } from "express";
 import { createServer } from "http";
 import cookieParser from "cookie-parser";
+import { connectKafka } from "./Services/kafka";
+import { startKafkaConsumer } from "./Services/kafkaConsumer";
 import userRoutes from "./Routes/userRoutes";
 import { initializeSocket } from "./Services/socket";
 import projectRoutes from "./Routes/projectRoutes";
@@ -11,6 +13,19 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 
+
+// load services and middlewares
+( async () => {
+  await connectKafka(); // Connect Kafka when app starts
+}) ();
+
+startKafkaConsumer();
+
+const httpServer = createServer(app);
+
+// Initialize Socket.IO
+initializeSocket(httpServer);
+
 // Routes
 app.use("/auth", userRoutes);
 
@@ -19,11 +34,6 @@ app.use("/projects", projectRoutes);
 app.get("/", (req: Request, res: Response) => {
   res.sendFile(__dirname + "/index.html");
 });
-
-const httpServer = createServer(app);
-
-// Initialize Socket.IO
-initializeSocket(httpServer);
 
 app.get("/allrooms", (req: Request, res: Response) => {
   res.send({});
