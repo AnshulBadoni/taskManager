@@ -1,11 +1,13 @@
 import express, { Express, Request, Response } from "express";
 import { createServer } from "http";
 import cookieParser from "cookie-parser";
-import { connectKafka } from "./Services/kafka";
-import { startKafkaConsumer } from "./Services/kafkaConsumer";
-import userRoutes from "./Routes/userRoutes";
+// import { connectKafka } from "./Services/kafka";
+// import { startKafkaConsumer } from "./Services/kafkaConsumer";
+// import swaggerJsdoc from 'swagger-jsdoc';
+// import swaggerUi from 'swagger-ui-express';
+import userRoutes from "./routes/userRoutes";
 import { initializeSocket } from "./Services/socket";
-import projectRoutes from "./Routes/projectRoutes";
+import projectRoutes from "./routes/projectRoutes";
 
 const app: Express = express();
 
@@ -15,11 +17,28 @@ app.use(cookieParser());
 
 
 // load services and middlewares
-( async () => {
-  await connectKafka(); // Connect Kafka when app starts
-}) ();
+// ( async () => {
+//   await connectKafka(); // Connect Kafka when app starts
+// }) ();
 
-startKafkaConsumer();
+// startKafkaConsumer();
+
+// const options: swaggerJsdoc.Options = {
+//   definition: {
+//     openapi: '3.0.0',
+//     info: {
+//       title: 'My API Docs',
+//       version: '1.0.0',
+//       description: 'Node.js API with TypeScript and Swagger',
+//     },
+//     servers: [
+//       {
+//         url: 'http://localhost:3001',
+//       },
+//     ],
+//   },
+//   apis: ['./src/routes/*.ts'], // Path to your route files
+// };
 
 const httpServer = createServer(app);
 

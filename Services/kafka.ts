@@ -2,13 +2,13 @@ import { Kafka } from "kafkajs"
 
 const kafkaConfig = new Kafka({
   clientId:'taskManager',
-  brokers: ['process.env.KAFKA_BROKER!'],
-  ssl: true,
-  sasl: {
-    mechanism: "plain", // or scram-sha-256 / scram-sha-512 based on your Kafka provider
-    username: process.env.KAFKA_USERNAME!,
-    password: process.env.KAFKA_PASSWORD!,
-  },
+  brokers: ['process.env.KAFKA_BROKERS'],
+  // ssl: true,
+  // sasl: {
+  //   mechanism: "plain", // or scram-sha-256 / scram-sha-512 based on your Kafka provider
+  //   username: process.env.KAFKA_USERNAME!,
+  //   password: process.env.KAFKA_PASSWORD!,
+  // },
 })
 
 export const kafkaProducer = kafkaConfig.producer()

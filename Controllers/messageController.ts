@@ -1,6 +1,4 @@
-import { Request, Response } from "express";
-import bcrypt from "bcrypt";
-import jwt from "jsonwebtoken";
+import { Request, Response } from "express";  
 import prisma from "../Connection/prisma";
 
 export const sendMessage = async (req: Request, res: Response) => {

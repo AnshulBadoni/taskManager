@@ -3,6 +3,7 @@ import prisma from "../Connection/prisma";
 import { Status } from "@prisma/client";
 import { redis } from "../Services/redis";
 import { getOrSetCache } from "../Services/cache";
+import { deleteCache, setKafka } from "../util";
 
 function isTaskExists(taskId: number): Promise<boolean> {
   return prisma.tasks
@@ -72,9 +73,9 @@ export const createTask = async (req: Request, res: Response) => {
       },
     });
 
-    redis.del("tasks:all");
-    redis.del(`task:name:${newTask.id}`);
-
+    await deleteCache("tasks:all", `task:name:${newTask.name}`);
+    await setKafka("task-events", "project-created", newTask);
+    
     res.status(201).json(newTask);
   } catch (error) {
     console.error("Error creating Task:", error);
@@ -92,7 +93,7 @@ export const getAllTasks = async (req: Request, res: Response) => {
         }),
       600
     );
-
+  
     res.status(200).json(Tasks);
   } catch (error) {
     console.error("Error fetching Tasks:", error);
@@ -169,8 +170,8 @@ export const updateTask = async (req: Request, res: Response) => {
       },
     });
 
-    redis.del("tasks:all");
-    redis.del(`task:name:${updatedTask.id}`);
+    await deleteCache("tasks:all", `task:name:${updatedTask.name}`);
+    await setKafka("task-events", "task-updated", updatedTask);
     res.status(200).json(updatedTask);
   } catch (error) {
     console.error("Error updating Task:", error);
@@ -193,9 +194,9 @@ export const deleteTask = async (req: Request, res: Response) => {
       where: { id: Number(id) },
     });
 
-    redis.del("tasks:all");
-    redis.del(`task:name:${id}`);
-    res.status(204).send();
+    await deleteCache("tasks:all", `task:name:${id}`);
+    await setKafka("task-events", "task-deleted", { id: Number(id) });
+    res.status(200).json({ message: "Task deleted successfully" });
   } catch (error) {
     console.error("Error deleting Task:", error);
     res.status(500).json({ error: "Internal Server Error", details: error });
@@ -226,6 +227,8 @@ export const assignTask = async (req: Request, res: Response) => {
       },
     });
 
+    await deleteCache("tasks:all", `task:name:${updatedTask.name}`);
+    await setKafka("task-events", "task-assigned", updatedTask);
     res
       .status(200)
       .json({
@@ -262,6 +265,8 @@ export const unassignTask = async (req: Request, res: Response) => {
       },
     });
 
+    await deleteCache("tasks:all", `task:name:${updatedTask.name}`);
+    await setKafka("task-events", "task-unassigned", updatedTask);
     res
       .status(200)
       .json({

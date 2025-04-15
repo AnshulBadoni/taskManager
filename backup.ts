@@ -1,7 +1,7 @@
 import express, { Express, Request, Response } from "express";
 import { createServer } from "http";
 import { Server } from "socket.io";
-import userRoutes from "./Routes/userRoutes";
+import userRoutes from "./routes/userRoutes";
 import cookieParser from "cookie-parser";
 import Redis from "ioredis";
 
